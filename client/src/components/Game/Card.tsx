@@ -20,42 +20,47 @@ const suitColors: Record<Suit, string> = {
 interface CardProps {
     suit: Suit;
     rank: Rank;
+    isFaceUp?: boolean;
+    isDeckCard?: number; // index of the card in the deck, used for styling
 }
 
-function Card({ suit, rank }: CardProps) {
+function Card({ suit, rank, isFaceUp, isDeckCard = 0 }: CardProps) {
     const symbol = suitSymbols[suit];
     const color = suitColors[suit];
-    const [isFaceUp, setIsFaceUp] = useState(true);
-
+    const [orientation, setOrientation] = useState(isFaceUp ?? false);
 
     return (
         <div
-            onClick={() => setIsFaceUp(!isFaceUp)}
-            className="w-[60px] sm:w-[80px] aspect-[2/3]"
-        >
-            {isFaceUp ? (
-                <div className="w-full h-full bg-white border border-gray-300 rounded-xl shadow-md flex flex-col justify-between p-2">
+            className="w-[clamp(40px,8vw,80px)] aspect-[2/3]"
+            style={isDeckCard ? {
+                position: "absolute",
+                top: `${isDeckCard * 2}px`,
+                left: `${isDeckCard * 2}px`,
+                zIndex: isDeckCard
+            } : {}}
+        // onClick={() => setOrientation(!orientation)} DEBUG: Toggle card orientation on click
 
-                    <div className={`text-sm leading-none self-start w-fit ${color}`}>
+        >
+            {orientation ? (
+                <div className="w-full h-full bg-white border border-gray-300 rounded-xl shadow-md flex flex-col justify-between p-1">
+                    <div className={`text-[clamp(16px,3vw,28px)] text-center ${color}`}>
                         {rank} {symbol}
                     </div>
-
-                    <div className={`text-3xl text-center ${color}`}>
+                    <div className={`text-[clamp(8px,1.5vw,14px)] ${color}`}>
                         {symbol}
                     </div>
-
-                    <div className={`text-sm leading-none self-end rotate-180 ${color}`}>
+                    <div className={`text-[clamp(16px,3vw,28px)] text-center ${color}`}>
                         {rank} {symbol}
                     </div>
-
                 </div>
             ) : (
-                <div className="w-full h-full bg-gray-300 border border-gray-400 rounded-xl shadow-md flex items-center justify-center">
-                    <span className="bg-red-500 w-full h-full m-1 rounded-xl"></span>
+                <div className="w-full h-full bg-white border border-black-300 rounded-xl shadow-md p-1">
+                    <span className="bg-red-500 w-full h-full rounded-lg block"></span>
                 </div>
             )}
         </div>
-    )
+    );
 }
 
 export default Card;
+export type { Suit, Rank };
