@@ -27,3 +27,33 @@ client/*.ntvs*
 client/*.njsproj
 client/*.sln
 client/*.sw?
+
+###############
+# SERVER-SIDE #
+###############
+./server/.git
+
+# Logs
+server/logs
+server/*.log
+server/npm-debug.log*
+server/yarn-debug.log*
+server/yarn-error.log*
+server/pnpm-debug.log*
+server/lerna-debug.log*
+
+server/node_modules
+server/dist
+server/dist-ssr
+server/*.local
+
+# Editor directories and files
+server/.vscode/*
+server/!.vscode/extensions.json
+server/.idea
+server/.DS_Store
+server/*.suo
+server/*.ntvs*
+server/*.njsproj
+server/*.sln
+server/*.sw?
