@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCrown, faCopy, faArrowRightFromBracket, faX } from '@fortawesome/free-solid-svg-icons';
 
 function Modal({ startGame, socket }: { startGame: (mode: string) => void; socket: any }) {
 
@@ -6,8 +8,9 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
     const [nickname, setNickname] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [joinCode, setJoinCode] = useState('');
-    const [playersInRoom, setPlayersInRoom] = useState<string[]>([]);
+    const [playersInRoom, setPlayersInRoom] = useState<any[]>([]);
     const [mode, setMode] = useState(true); // true ==> create && false ==> join
+    const [isHost, setIsHost] = useState(false);
 
     const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setNickname(e.target.value);
@@ -20,9 +23,11 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
 
     const createRoom = () => {
         if (!roomCode) {
-            socket.emit('createRoom', { nickname }, (response: any) => {
+            socket.emit('createRoom', { mode, nickname }, (response: any) => {
                 console.log("Response:", response);
                 setRoomCode(response.roomId);
+                const host = response.players.find((player: any) => player.isHost);
+                setIsHost(host?.id === socket.id);
             });
         }
     }
@@ -32,24 +37,36 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
     }
 
     const copyOrConnect = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        
+
         if (mode) { // copy uuid url
             await navigator.clipboard.writeText(roomCode);
         } else { // join room
-            socket.emit('joinRoom', { nickname, roomId:joinCode }, (response: any) => {
+            socket.emit('joinRoom', { nickname, roomId: joinCode }, (response: any) => {
                 //TODO: update player roster
                 console.log("Response:", response);
+
+                if (response.players) {
+                    const players = response.players.filter((player: any) => player.nickname !== nickname);
+                    setPlayersInRoom(players);
+                    setIsHost(false);
+                }
             });
         }
     }
 
     const goBack = () => {
-        setRoomCode('');
-        setJoinCode('');
-        setMode(true);
-        setPlayersInRoom([]);
-        setShowPlayerRoom(false);
 
+        if (playersInRoom.length > 0) {
+            socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, (response: any) => {
+                console.log("Left Room:", response);
+            });
+
+            setRoomCode('');
+            setJoinCode('');
+            setMode(true);
+            setPlayersInRoom([]);
+            setShowPlayerRoom(false);
+        }
     }
 
     const kickPlayer = (index: number) => {
@@ -57,6 +74,11 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
         updatedPlayers.splice(index, 1);
         setPlayersInRoom(updatedPlayers);
     }
+
+    socket.on('playerJoined', (data: any) => {
+        console.log("Player Joined:", data);
+        setPlayersInRoom(data.players.filter((player: any) => player.nickname !== nickname));
+    });
 
     return (
         <div className=" teleport fixed inset-0 flex items-center justify-center bg-black/50 z-51">
@@ -131,7 +153,7 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
                                         />
                                     )}
                                     <button className="w-1/5 px-4 py-2 bg-blue-500 text-white rounded-br hover:bg-blue-600" onClick={copyOrConnect}>
-                                        icon
+                                        {mode ? <FontAwesomeIcon icon={faCopy} /> : "Go"}
                                     </button>
                                 </div>
                             </div>
@@ -139,15 +161,27 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
                                 <ul>
                                     <li className="text-gray-700 p-1 bg-gray-300 rounded mb-1 flex justify-between items-center">
                                         <span className="font-bold">
-                                            {nickname ?? "Anonymous"} (you)
+                                            {nickname || "Anonymous"} (you) {isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
                                         </span>
+                                        {!isHost && (
+                                            <button className="bg-red-500 text-white px-1 rounded hover:bg-red-600" title="Leave Room" onClick={goBack}>
+                                                <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                                            </button>
+                                        )}
                                     </li>
                                     {playersInRoom.map((player, index) => (
                                         <li key={index} className="text-gray-700 p-1 bg-gray-300 rounded mb-1 flex justify-between items-center">
-                                            <span>{player}</span>
-                                            <button className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600" onClick={() => kickPlayer(index)}>
-                                                X
-                                            </button>
+                                            <div>
+                                                <span>{player.nickname || "Anonymous"}</span>
+                                                {player.isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
+                                            </div>
+                                            {isHost && (<button
+                                                onClick={() => kickPlayer(index)}
+                                                className="bg-red-500 text-white px-1 rounded hover:bg-red-600"
+                                                title="Kick Player"
+                                            >
+                                                <FontAwesomeIcon icon={faX} />
+                                            </button>)}
                                         </li>
                                     ))}
                                 </ul>
