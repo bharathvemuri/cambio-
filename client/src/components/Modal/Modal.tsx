@@ -22,14 +22,12 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
     }
 
     const createRoom = () => {
-        if (!roomCode) {
-            socket.emit('createRoom', { mode, nickname }, (response: any) => {
-                console.log("Response:", response);
-                setRoomCode(response.roomId);
-                const host = response.players.find((player: any) => player.isHost);
-                setIsHost(host?.id === socket.id);
-            });
-        }
+        socket.emit('createRoom', { mode, nickname }, (response: any) => {
+            console.log("Response:", response);
+            setRoomCode(response.roomId);
+            const host = response.players.find((player: any) => player.isHost);
+            setIsHost(host?.id === socket.id);
+        });
     }
 
     const handleJoinCodeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,29 +54,54 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
 
     const goBack = () => {
 
-        if (playersInRoom.length > 0) {
-            socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, (response: any) => {
-                console.log("Left Room:", response);
-            });
+        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, (response: any) => {
+            console.log("Left Room:", response);
+        });
 
-            setRoomCode('');
-            setJoinCode('');
-            setMode(true);
-            setPlayersInRoom([]);
-            setShowPlayerRoom(false);
-        }
+        resetRoom();
+        setShowPlayerRoom(false);
     }
 
+    const resetRoom = () => {
+        setRoomCode('');
+        setJoinCode('');
+        setMode(true);
+        setPlayersInRoom([]);
+    }
+
+    const leaveRoom = () => {
+
+        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, async (response: any) => {
+            console.log("Left Room:", response);
+            resetRoom();
+            createRoom();
+        });
+    };
+
+
     const kickPlayer = (index: number) => {
+
+        socket.emit('kickPlayer', { playerId: playersInRoom[index].id, roomId: roomCode }, (response: any) => {
+            console.log("Kick Player:", response);
+        });
+
         const updatedPlayers = [...playersInRoom];
         updatedPlayers.splice(index, 1);
         setPlayersInRoom(updatedPlayers);
     }
 
-    socket.on('playerJoined', (data: any) => {
+    // Socket Listeners
+    socket.on('updatePlayers', (data: any) => {
         console.log("Player Joined:", data);
-        setPlayersInRoom(data.players.filter((player: any) => player.nickname !== nickname));
+        setPlayersInRoom(prevPlayers => [...new Set([...prevPlayers, ...data.players])].filter((player: any) => player.nickname !== nickname));
     });
+
+    socket.on('kicked', (data: any) => {
+        console.log("Kicked from Room:", data);
+        resetRoom();
+        createRoom();
+    });
+
 
     return (
         <div className=" teleport fixed inset-0 flex items-center justify-center bg-black/50 z-51">
@@ -153,7 +176,7 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
                                         />
                                     )}
                                     <button className="w-1/5 px-4 py-2 bg-blue-500 text-white rounded-br hover:bg-blue-600" onClick={copyOrConnect}>
-                                        {mode ? <FontAwesomeIcon icon={faCopy} /> : "Go"}
+                                        {mode ? <FontAwesomeIcon icon={faCopy} /> : <FontAwesomeIcon icon={faArrowRightFromBracket} />}
                                     </button>
                                 </div>
                             </div>
@@ -164,7 +187,7 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
                                             {nickname || "Anonymous"} (you) {isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
                                         </span>
                                         {!isHost && (
-                                            <button className="bg-red-500 text-white px-1 rounded hover:bg-red-600" title="Leave Room" onClick={goBack}>
+                                            <button className="bg-red-500 text-white px-1 rounded hover:bg-red-600" title="Leave Room" onClick={leaveRoom}>
                                                 <FontAwesomeIcon icon={faArrowRightFromBracket} />
                                             </button>
                                         )}
@@ -191,8 +214,8 @@ function Modal({ startGame, socket }: { startGame: (mode: string) => void; socke
                             <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2" onClick={goBack}>
                                 Back
                             </button>
-                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2" onClick={() => startGame('players')}>
-                                Start Game
+                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled={playersInRoom.length < 1 || !isHost} onClick={() => startGame('players')}>
+                                {isHost ? "Start Game" : "Waiting for Host"}
                             </button>
                         </div>
                     </div>

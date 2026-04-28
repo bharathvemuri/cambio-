@@ -19,7 +19,7 @@ class Game {
         this.players.push(player);
     }
 
-    kickPlayer(playerId) {
+    removePlayer(playerId) {
         this.players = this.players.filter(p => p.id !== playerId);
     }
 
