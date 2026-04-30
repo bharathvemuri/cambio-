@@ -79,10 +79,6 @@ function registerRoomHandlers(io, socket) {
         socket.broadcast.to(roomId).emit("updatePlayers", { players: gameState.players });
         callback({ success: true });
     });
-
-    socket.on("disconnect", () => {
-        console.log(`Client disconnected: ${socket.id}`);
-    });
 }
 
 module.exports = { registerRoomHandlers };

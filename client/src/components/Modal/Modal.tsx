@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faCopy, faArrowRightFromBracket, faX } from '@fortawesome/free-solid-svg-icons';
 
-function Modal({ startGame, socket }: { startGame: (mode: string) => void; socket: any }) {
+import { useSocket } from '../../providers/SocketProvider.tsx';
 
+function Modal({ startGame }: { startGame: (mode: string) => void }) {
+
+    const socket = useSocket();
     const [showPlayerRoom, setShowPlayerRoom] = useState(false);
     const [nickname, setNickname] = useState('');
     const [roomCode, setRoomCode] = useState('');

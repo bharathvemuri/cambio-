@@ -1,39 +1,45 @@
+// Library Imports
 import { useState } from 'react'
-import { io } from 'socket.io-client';
 
+// Socket
+import { useSocket } from './providers/SocketProvider.tsx';
+
+// Component Imports
+import Game from './components/Game/Game';
+import Modal from './components/Modal/Modal';
 import './App.css'
-import Game from './components/Game/Game'
-import Navbar from './components/Navbar/Navbar'
-import Modal from './components/Modal/Modal'
 
 function App() {
 
   const [modalOpen, setModalOpen] = useState(true);
-  const socket = io('http://localhost:3000');
+  const [gameState, setGameState] = useState(null);
+  const socket = useSocket();
 
 
   const startGame = (mode: string) => {
 
-    switch (mode) {
-      case 'computer':
-        console.log('Starting game vs Computer');
-        break;
-      case 'players':
-        console.log('Starting game vs Players');
-        break;
-      default:
-        console.log('Invalid game mode selected');
-    }
+    socket.emit("startGame", { mode }, (response: any) => {
+      console.log("Server response:", response);
+      setGameState(response.gameState);
+    });
     setModalOpen(false);
   }
+
+
+  // socket event listeners
+  socket.on("gameStarted", (data: any) => {
+    setGameState(data.gameState);
+  });
+
   return (
     <>
-
       {modalOpen && (
-        <Modal startGame={startGame} socket={socket} />
+        <Modal startGame={startGame}/>
       )}
       {/* <Navbar/> */}
-      <Game />
+      {gameState && (
+        <Game state={gameState}/>
+      )}
     </>
   )
 }

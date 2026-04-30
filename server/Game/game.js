@@ -23,6 +23,20 @@ class Game {
         this.players = this.players.filter(p => p.id !== playerId);
     }
 
+    startGame(mode) {
+        this.mode = mode;
+        this.deck.shuffle(); // ensure deck is shuffled at start of game
+
+        // Deal 4 cards to each player  
+        let count = 0;
+        while (count < 4) {
+            for (const player of this.players) {
+                player.hand.push(this.deck.drawCard());
+            }
+            count++;
+        }
+    }
+
     validateMove(move) {
         // TODO: Implement move validation logic
     }

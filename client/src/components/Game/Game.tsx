@@ -1,90 +1,73 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 
 import Deck from "./Deck";
 import Player from "./Player";
+import { useSocket } from "../../providers/SocketProvider";
 
 const ACTIONS = {
-    INITIALIZE_GAME: 'INITIALIZE_GAME',
-    UPDATE_PLAYER_HAND: 'UPDATE_PLAYER_HAND',
+  INITIALIZE_GAME: 'INITIALIZE_GAME',
+  UPDATE_PLAYER_HAND: 'UPDATE_PLAYER_HAND',
 }
 
-function reducer(state: any, action: any) {
-    switch (action.type) {
-        case ACTIONS.INITIALIZE_GAME:
-            return { ...state, players: action.payload.players };
-        case ACTIONS.UPDATE_PLAYER_HAND:
-            return { ...state, players: action.payload.players };
-        default:
-            return state;
-    }
+function reducer(localState: any, action: any) {
+  switch (action.type) {
+    case ACTIONS.INITIALIZE_GAME:
+      return { ...localState, players: action.payload.players };
+    case ACTIONS.UPDATE_PLAYER_HAND:
+      return { ...localState, players: action.payload.players };
+    default:
+      return localState;
+  }
 }
 
-const initialState = {
-    players: [
-        { name: 'Player 1', 
-          order: 0, 
-          cards: [
-            { suit: 'hearts', rank: 'K' },
-            { suit: 'clubs', rank: 'A' },
-            { suit: 'spades', rank: '2' },
-            { suit: 'diamonds', rank: '6' },
-          ] },
-        { name: 'Player 2', 
-          order: 1, 
-          cards: [
-            { suit: 'hearts', rank: '5' },
-            { suit: 'clubs', rank: '2' },
-            { suit: 'spades', rank: 'J' },
-            { suit: 'diamonds', rank: '4' },
-          ] },
-        { name: 'Player 3', 
-          order: 2, 
-          cards: [
-            { suit: 'hearts', rank: '3' },
-            { suit: 'clubs', rank: '7' },
-            { suit: 'spades', rank: 'Q' },
-            { suit: 'diamonds', rank: '9' },
-          ] },
-        { name: 'Player 4', 
-          order: 3, 
-          cards: [
-            { suit: 'hearts', rank: 'A' },
-            { suit: 'clubs', rank: '10' },
-            { suit: 'spades', rank: 'K' },
-            { suit: 'diamonds', rank: '5' },
-          ] }
-    ]
-};
+function Game({ state }: { state: any}) {
 
-function Game() {
+  const socket = useSocket();
+  const [localState, dispatch] = useReducer(reducer, state);
 
-  const [state, dispatch] = useReducer(reducer, initialState);
-
-  useEffect(() => {
-    // Initialize game state, fetch data, etc.
-  }, []);
+  const updatePlayerHand = (playerId: number, newHand: any[]) => {
+    dispatch({
+      type: ACTIONS.UPDATE_PLAYER_HAND, payload: {
+        players: localState.players.map((player: any, index: number) => {
+          if (index === playerId) {
+            return { ...player, hand: newHand };
+          }
+          return player;
+        })
+      }
+    });
+  }
 
   return (
     <div className="h-screen w-screen grid grid-cols-3 grid-rows-3 items-center justify-items-center overflow-hidden">
 
-      <div className="col-start-2 row-start-1">
-        <Player name={state.players[3].name} order={2} cards={state.players[3].cards} />
-      </div>
-
-      <div className="col-start-1 row-start-2">
-        <Player name={state.players[2].name} order={1} cards={state.players[2].cards} />
-      </div>
-
-        <div className="col-start-2 row-start-2">
-          <Deck />
+      {/* Opposite from player 1 - when there are 2 or 4 players */}
+      {localState.players.length === 2 || localState.players.length === 4 && (
+        <div className="col-start-2 row-start-1">
+          <Player name={localState.players[1].name} order={2} hand={localState.players[1].hand} />
         </div>
+      )}
 
-      <div className="col-start-3 row-start-2">
-        <Player name={state.players[1].name} order={3} cards={state.players[1].cards} />
+      {/* Players to the left and right of player 1 - when there are 3 or 4 players     */}
+      {localState.players.length === 4 || localState.players.length === 3 && (
+        <>
+          <div className="col-start-1 row-start-2">
+            <Player name={localState.players[localState.players.length-1].name} order={3} hand={localState.players[localState.players.length-1].hand} />
+          </div>
+          <div className="col-start-3 row-start-2">
+            <Player name={localState.players[1].name} order={1} hand={localState.players[1].hand} />
+          </div>
+        </>
+      )}
+
+      {/* Deck in the center */}
+      <div className="col-start-2 row-start-2">
+        <Deck />
       </div>
 
+      {/* Player 1 - always at the bottom */}
       <div className="col-start-2 row-start-3">
-        <Player name={state.players[0].name} order={0} cards={state.players[0].cards} />
+        <Player name={localState.players[0].name} order={0} hand={localState.players[0].hand} />
       </div>
 
     </div>
@@ -92,3 +75,6 @@ function Game() {
 }
 
 export default Game;
+
+
+
