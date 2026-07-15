@@ -1,32 +1,33 @@
-import { createContext, useContext, useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const SocketContext = createContext<Socket | null>(null);
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-    const socketRef = useRef<Socket | null>(null);
+    const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        socketRef.current = io('http://localhost:3000');
+        const newSocket = io("http://localhost:3000");
+        setSocket(newSocket);
+
+        newSocket.on("connect", () => {
+            console.log("connected:", newSocket.id);
+        });
+
+        newSocket.on("disconnect", () => {
+            console.log("disconnected");
+        });
 
         return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-            }
+            newSocket.disconnect();
         };
     }, []);
 
     return (
-        <SocketContext.Provider value={socketRef.current}>
+        <SocketContext.Provider value={socket}>
             {children}
         </SocketContext.Provider>
     );
-}
-
-export const useSocket = () => {
-    const socket = useContext(SocketContext);
-    if (!socket) {
-        throw new Error("useSocket must be used within a SocketProvider");
-    }
-    return socket;
 };
+
+export const useSocket = () => useContext(SocketContext);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCrown, faCopy, faArrowRightFromBracket, faX } from '@fortawesome/free-solid-svg-icons';
 
@@ -7,13 +7,23 @@ import { useSocket } from '../../providers/SocketProvider.tsx';
 function Modal({ startGame }: { startGame: (mode: string) => void }) {
 
     const socket = useSocket();
+
     const [showPlayerRoom, setShowPlayerRoom] = useState(false);
     const [nickname, setNickname] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [joinCode, setJoinCode] = useState('');
     const [playersInRoom, setPlayersInRoom] = useState<any[]>([]);
-    const [mode, setMode] = useState(true); // true ==> create && false ==> join
+    const [mode, setMode] = useState(true);
     const [isHost, setIsHost] = useState(false);
+
+    const nicknameRef = useRef(nickname);
+    useEffect(() => {
+        nicknameRef.current = nickname;
+    }, [nickname]);
+
+    if (!socket) {
+        return <div>Connecting...</div>;
+    }
 
     const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setNickname(e.target.value);
@@ -22,89 +32,104 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
     const navigateToPlayerRoom = () => {
         setShowPlayerRoom(true);
         createRoom();
-    }
+    };
 
     const createRoom = () => {
         socket.emit('createRoom', { mode, nickname }, (response: any) => {
             console.log("Response:", response);
             setRoomCode(response.roomId);
+
             const host = response.players.find((player: any) => player.isHost);
             setIsHost(host?.id === socket.id);
         });
-    }
+    };
 
     const handleJoinCodeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setJoinCode(e.target.value);
-    }
+        if (mode) {
+            setRoomCode(e.target.value);
+        } else {
+            setJoinCode(e.target.value);
+        }
+    };
 
-    const copyOrConnect = async (e: React.MouseEvent<HTMLButtonElement>) => {
-
-        if (mode) { // copy uuid url
+    const copyOrConnect = async () => {
+        if (mode) {
             await navigator.clipboard.writeText(roomCode);
-        } else { // join room
+        } else {
+            console.log("Socket:", socket);
             socket.emit('joinRoom', { nickname, roomId: joinCode }, (response: any) => {
-                //TODO: update player roster
                 console.log("Response:", response);
 
                 if (response.players) {
-                    const players = response.players.filter((player: any) => player.nickname !== nickname);
-                    setPlayersInRoom(players);
+                    response.players.shift();
+                    setPlayersInRoom(response.players);
                     setIsHost(false);
                 }
             });
         }
-    }
+    };
 
     const goBack = () => {
-
-        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, (response: any) => {
-            console.log("Left Room:", response);
+        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, () => {
+            resetRoom();
+            setShowPlayerRoom(false);
         });
-
-        resetRoom();
-        setShowPlayerRoom(false);
-    }
+    };
 
     const resetRoom = () => {
         setRoomCode('');
         setJoinCode('');
         setMode(true);
         setPlayersInRoom([]);
-    }
+    };
 
     const leaveRoom = () => {
-
-        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, async (response: any) => {
-            console.log("Left Room:", response);
+        socket.emit('leaveRoom', { nickname, roomId: mode ? roomCode : joinCode }, () => {
             resetRoom();
             createRoom();
         });
     };
 
-
     const kickPlayer = (index: number) => {
-
-        socket.emit('kickPlayer', { playerId: playersInRoom[index].id, roomId: roomCode }, (response: any) => {
-            console.log("Kick Player:", response);
+        socket.emit('kickPlayer', {
+            playerId: playersInRoom[index].id,
+            roomId: roomCode
         });
 
-        const updatedPlayers = [...playersInRoom];
-        updatedPlayers.splice(index, 1);
-        setPlayersInRoom(updatedPlayers);
-    }
+        setPlayersInRoom(prev => prev.filter((_, i) => i !== index));
+    };
 
-    // Socket Listeners
-    socket.on('updatePlayers', (data: any) => {
-        console.log("Player Joined:", data);
-        setPlayersInRoom(prevPlayers => [...new Set([...prevPlayers, ...data.players])].filter((player: any) => player.nickname !== nickname));
-    });
+    useEffect(() => {
+        if (!socket) return;
 
-    socket.on('kicked', (data: any) => {
-        console.log("Kicked from Room:", data);
-        resetRoom();
-        createRoom();
-    });
+        const handleUpdatePlayers = (data: any) => {
+            console.log("Player update:", data);
 
+            setPlayersInRoom(prev =>
+                [
+                    ...prev,
+                    ...data.players
+                ].filter(
+                    (p: any, idx, arr) =>
+                        arr.findIndex(x => x.id === p.id) === idx && p.id !== socket.id
+                )
+            );
+        };
+
+        const handleKicked = (data: any) => {
+            console.log("Kicked from Room:", data);
+            resetRoom();
+            createRoom();
+        };
+
+        socket.on('updatePlayers', handleUpdatePlayers);
+        socket.on('kicked', handleKicked);
+
+        return () => {
+            socket.off('updatePlayers', handleUpdatePlayers);
+            socket.off('kicked', handleKicked);
+        };
+    }, [socket]);
 
     return (
         <div className=" teleport fixed inset-0 flex items-center justify-center bg-black/50 z-51">
@@ -112,6 +137,7 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
                 <div className="modal-title mb-4">
                     <h1 className="text-xl color-black-800 font-bold mb-4">camb.io</h1>
                 </div>
+
                 {showPlayerRoom === false ? (
                     <div className="setup-pg-1">
                         <div className="modal-content mb-4">
@@ -128,11 +154,19 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
                                 />
                             </form>
                         </div>
+
                         <div className="modal-footer mb-4>">
-                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2" onClick={() => startGame('computer')}>
+                            <button
+                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2"
+                                onClick={() => startGame('computer')}
+                            >
                                 vs Computer
                             </button>
-                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2" onClick={navigateToPlayerRoom}>
+
+                            <button
+                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2"
+                                onClick={navigateToPlayerRoom}
+                            >
                                 vs Players
                             </button>
                         </div>
@@ -163,61 +197,84 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
                                         join
                                     </button>
                                 </div>
+
                                 <div className="room-link">
-                                    {mode ? (
-                                        <input
-                                            disabled
-                                            value={roomCode}
-                                            onChange={handleJoinCodeInput}
-                                            className="w-4/5 border border-gray-300 bg-gray-200 color-black-800 rounded-bl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    ) : (
-                                        <input
-                                            value={joinCode}
-                                            onChange={handleJoinCodeInput}
-                                            className="w-4/5 border border-gray-300 bg-gray-200 color-black-800 rounded-bl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    )}
-                                    <button className="w-1/5 px-4 py-2 bg-blue-500 text-white rounded-br hover:bg-blue-600" onClick={copyOrConnect}>
-                                        {mode ? <FontAwesomeIcon icon={faCopy} /> : <FontAwesomeIcon icon={faArrowRightFromBracket} />}
+                                    <input
+                                        disabled={mode}
+                                        value={mode ? roomCode : joinCode}
+                                        onChange={handleJoinCodeInput}
+                                        className="w-4/5 border border-gray-300 bg-gray-200 color-black-800 rounded-bl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+
+                                    <button
+                                        className="w-1/5 px-4 py-2 bg-blue-500 text-white rounded-br hover:bg-blue-600"
+                                        onClick={copyOrConnect}
+                                    >
+                                        {mode
+                                            ? <FontAwesomeIcon icon={faCopy} />
+                                            : <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                                        }
                                     </button>
                                 </div>
                             </div>
+
                             <div className="room-container bg-gray-200 mt-4 w-full h-48 rounded-lg p-4">
                                 <ul>
                                     <li className="text-gray-700 p-1 bg-gray-300 rounded mb-1 flex justify-between items-center">
                                         <span className="font-bold">
-                                            {nickname || "Anonymous"} (you) {isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
+                                            {nickname || "Anonymous"} (you)
+                                            {isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
                                         </span>
+
                                         {!isHost && (
-                                            <button className="bg-red-500 text-white px-1 rounded hover:bg-red-600" title="Leave Room" onClick={leaveRoom}>
+                                            <button
+                                                className="bg-red-500 text-white px-1 rounded hover:bg-red-600"
+                                                title="Leave Room"
+                                                onClick={leaveRoom}
+                                            >
                                                 <FontAwesomeIcon icon={faArrowRightFromBracket} />
                                             </button>
                                         )}
                                     </li>
+
                                     {playersInRoom.map((player, index) => (
-                                        <li key={index} className="text-gray-700 p-1 bg-gray-300 rounded mb-1 flex justify-between items-center">
+                                        <li
+                                            key={index}
+                                            className="text-gray-700 p-1 bg-gray-300 rounded mb-1 flex justify-between items-center"
+                                        >
                                             <div>
                                                 <span>{player.nickname || "Anonymous"}</span>
                                                 {player.isHost && <FontAwesomeIcon icon={faCrown} className="mx-1 text-yellow-500" />}
                                             </div>
-                                            {isHost && (<button
-                                                onClick={() => kickPlayer(index)}
-                                                className="bg-red-500 text-white px-1 rounded hover:bg-red-600"
-                                                title="Kick Player"
-                                            >
-                                                <FontAwesomeIcon icon={faX} />
-                                            </button>)}
+
+                                            {isHost && (
+                                                <button
+                                                    onClick={() => kickPlayer(index)}
+                                                    className="bg-red-500 text-white px-1 rounded hover:bg-red-600"
+                                                    title="Kick Player"
+                                                >
+                                                    <FontAwesomeIcon icon={faX} />
+                                                </button>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                         </div>
+
                         <div className="modal-footer mb-4>">
-                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2" onClick={goBack}>
+                            <button
+                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2"
+                                onClick={goBack}
+                            >
                                 Back
                             </button>
-                            <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled={playersInRoom.length < 1 || !isHost} onClick={() => startGame('players')}>
+
+                            <button
+                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={playersInRoom.length < 1 || !isHost}
+                                onClick={() => startGame('players')}
+                            >
                                 {isHost ? "Start Game" : "Waiting for Host"}
                             </button>
                         </div>

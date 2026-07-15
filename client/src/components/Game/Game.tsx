@@ -42,20 +42,20 @@ function Game({ state }: { state: any}) {
     <div className="h-screen w-screen grid grid-cols-3 grid-rows-3 items-center justify-items-center overflow-hidden">
 
       {/* Opposite from player 1 - when there are 2 or 4 players */}
-      {localState.players.length === 2 || localState.players.length === 4 && (
+      {(localState.players.length === 2 || localState.players.length === 4) && (
         <div className="col-start-2 row-start-1">
-          <Player name={localState.players[1].name} order={2} hand={localState.players[1].hand} />
+          <Player nickname={localState.players[1].nickname} order={2} hand={localState.players[1].hand} />
         </div>
       )}
 
       {/* Players to the left and right of player 1 - when there are 3 or 4 players     */}
-      {localState.players.length === 4 || localState.players.length === 3 && (
+      {(localState.players.length === 4 || localState.players.length === 3) && (
         <>
           <div className="col-start-1 row-start-2">
-            <Player name={localState.players[localState.players.length-1].name} order={3} hand={localState.players[localState.players.length-1].hand} />
+            <Player nickname={localState.players[localState.players.length-1].nickname} order={3} hand={localState.players[localState.players.length-1].hand} />
           </div>
           <div className="col-start-3 row-start-2">
-            <Player name={localState.players[1].name} order={1} hand={localState.players[1].hand} />
+            <Player nickname={localState.players[1].nickname} order={1} hand={localState.players[1].hand} />
           </div>
         </>
       )}
@@ -67,7 +67,7 @@ function Game({ state }: { state: any}) {
 
       {/* Player 1 - always at the bottom */}
       <div className="col-start-2 row-start-3">
-        <Player name={localState.players[0].name} order={0} hand={localState.players[0].hand} />
+        <Player nickname={localState.players[0].nickname} order={0} hand={localState.players[0].hand} />
       </div>
 
     </div>

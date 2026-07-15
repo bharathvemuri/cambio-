@@ -1,7 +1,7 @@
 import Card from "./Card";
 
 interface PlayerProps {
-    name: string;
+    nickname: string;
     hand: {
         suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
         rank: '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
@@ -16,11 +16,11 @@ const rotationClasses = [
     'rotate-90',
 ];
 
-function Player({ name, hand, order }: PlayerProps) {
+function Player({ nickname, hand, order }: PlayerProps) {
     return (
         <div className={`flex flex-col-reverse w-full gap-2 max-w-sm sm:max-w-md mx-auto p-2 sm:p-4 transform ${rotationClasses[order]}`}>
 
-            <h2 className="text-sm sm:text-base font-semibold mt-2">{name}</h2>
+            <h2 className="text-sm sm:text-base font-semibold mt-2">{nickname}</h2>
 
             <div className="grid grid-cols-[auto_auto] justify-center gap-x-1 gap-y-1 mt-1">
                 {hand.map((card, index) => (

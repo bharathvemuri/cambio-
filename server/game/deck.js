@@ -8,7 +8,7 @@ class Deck {
     initializeDrawPile() {
         const drawPile = [];
         const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
-        const suits = ["Hearts", "Diamonds", "Clubs", "Spades"];
+        const suits = ["hearts", "diamonds", "clubs", "spades"];
         for (const suit of suits) {
             for (const rank of ranks) {
                 drawPile.push({ rank, suit });
@@ -26,7 +26,7 @@ class Deck {
 
     drawCard() {
         if (this.drawPile.length === 0) {
-            throw new Error("Draw pile is empty");
+            this.deckOut();
         }
         return this.drawPile.pop();
     }
@@ -35,11 +35,18 @@ class Deck {
         this.discardPile.push(card);
     }
 
-    // Reverse the discarded cards back into the draw pile when the draw pile is empty
+    // Reshuffle the discard pile back into the draw pile when the draw pile is empty,
+    // keeping the current top discard card in place since it's still "in play" as the
+    // active match target.
     deckOut() {
         if (this.drawPile.length === 0) {
-            this.drawPile = this.discardPile.reverse;
-            this.discardPile = [];
+            if (this.discardPile.length <= 1) {
+                throw new Error("No cards left to reshuffle");
+            }
+            const topCard = this.discardPile.pop();
+            this.drawPile = this.discardPile;
+            this.discardPile = [topCard];
+            this.shuffle();
         }
     }
 }
