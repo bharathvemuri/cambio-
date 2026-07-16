@@ -4,7 +4,7 @@ import { faCrown, faCopy, faArrowRightFromBracket, faX } from '@fortawesome/free
 
 import { useSocket } from '../../providers/SocketProvider.tsx';
 
-function Modal({ startGame }: { startGame: (mode: string) => void }) {
+function Modal({ startGame }: { startGame: (mode: string, roomId: string) => void }) {
 
     const socket = useSocket();
 
@@ -61,8 +61,8 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
                 console.log("Response:", response);
 
                 if (response.players) {
-                    response.players.shift();
-                    setPlayersInRoom(response.players);
+                    // Show everyone except myself (I'm rendered separately as "(you)")
+                    setPlayersInRoom(response.players.filter((p: any) => p.id !== socket.id));
                     setIsHost(false);
                 }
             });
@@ -157,8 +157,9 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
 
                         <div className="modal-footer mb-4>">
                             <button
-                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2"
-                                onClick={() => startGame('computer')}
+                                className="px-4 py-2 bg-blue-500 text-white rounded m-2 opacity-50 cursor-not-allowed"
+                                disabled
+                                title="Coming soon"
                             >
                                 vs Computer
                             </button>
@@ -273,7 +274,7 @@ function Modal({ startGame }: { startGame: (mode: string) => void }) {
                             <button
                                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 m-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={playersInRoom.length < 1 || !isHost}
-                                onClick={() => startGame('players')}
+                                onClick={() => startGame('players', roomCode)}
                             >
                                 {isHost ? "Start Game" : "Waiting for Host"}
                             </button>

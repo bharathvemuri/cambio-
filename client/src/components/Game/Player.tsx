@@ -1,34 +1,59 @@
-import Card from "./Card";
+import Card from './Card';
+import type { CardData, PublicPlayer } from '../../types/game';
 
 interface PlayerProps {
-    nickname: string;
-    hand: {
-        suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
-        rank: '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
-    }[];
-    order: number;
+    player: PublicPlayer;
+    isMe: boolean;
+    isCurrentTurn: boolean;
+    isCambioCaller: boolean;
+    // handIndex -> card to show temporarily face-up (peeks/reveals, private to this client)
+    reveals: Record<number, CardData>;
+    selectedIndices: number[];
+    selectable: boolean;
+    onCardClick: (handIndex: number) => void;
+    onCardDoubleClick: (handIndex: number) => void;
 }
 
-const rotationClasses = [
-    'rotate-0',
-    'rotate-270',
-    'rotate-180',
-    'rotate-90',
-];
+function Player({
+    player,
+    isMe,
+    isCurrentTurn,
+    isCambioCaller,
+    reveals,
+    selectedIndices,
+    selectable,
+    onCardClick,
+    onCardDoubleClick,
+}: PlayerProps) {
+    // Hands normally hold 4 cards but grow past 4 on wrong-match penalties.
+    const cols = player.hand.length > 4 ? 'grid-cols-3' : 'grid-cols-2';
 
-function Player({ nickname, hand, order }: PlayerProps) {
     return (
-        <div className={`flex flex-col-reverse w-full gap-2 max-w-sm sm:max-w-md mx-auto p-2 sm:p-4 transform ${rotationClasses[order]}`}>
-
-            <h2 className="text-sm sm:text-base font-semibold mt-2">{nickname}</h2>
-
-            <div className="grid grid-cols-[auto_auto] justify-center gap-x-1 gap-y-1 mt-1">
-                {hand.map((card, index) => (
-                    <div className="w-[clamp(40px,8vw,80px)] aspect-[2/3]" key={index}>
-                        <Card key={index} suit={card.suit} rank={card.rank} />
+        <div
+            className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl transition-colors ${
+                isCurrentTurn ? 'ring-2 ring-blue-400 bg-blue-400/10' : ''
+            }`}
+        >
+            <div className={`grid ${cols} justify-center gap-1`}>
+                {player.hand.map((card, index) => (
+                    <div className="w-[clamp(40px,7vw,72px)] aspect-[2/3]" key={index}>
+                        <Card
+                            card={reveals[index] ?? card}
+                            faceUp={reveals[index] !== undefined}
+                            selectable={selectable}
+                            selected={selectedIndices.includes(index)}
+                            onClick={() => onCardClick(index)}
+                            onDoubleClick={() => onCardDoubleClick(index)}
+                        />
                     </div>
                 ))}
             </div>
+
+            <h2 className="text-sm sm:text-base font-semibold">
+                {player.nickname || 'Anonymous'}
+                {isMe && ' (you)'}
+                {isCambioCaller && <span className="ml-1 text-amber-500 font-bold">CAMBIO!</span>}
+            </h2>
         </div>
     );
 }

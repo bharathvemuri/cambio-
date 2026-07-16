@@ -21,13 +21,16 @@ function registerGameHandlers(io, socket) {
 
     socket.on("startGame", async (data, callback) => {
         const { mode, roomId } = data;
+        try {
+            const gameState = await retrieveGameState(roomId);
+            gameState.startGame(mode);
+            await storeGameState(roomId, gameState);
 
-        const gameState = await retrieveGameState(roomId);
-        gameState.startGame(mode);
-        await storeGameState(roomId, gameState);
-
-        broadcastGameState(io, roomId, gameState);
-        callback({ gameState: toPublicGameState(gameState, socket.id) });
+            broadcastGameState(io, roomId, gameState);
+            callback({ gameState: toPublicGameState(gameState, socket.id) });
+        } catch (err) {
+            callback({ error: err.message });
+        }
     });
 
     socket.on("peekInitialHand", async (data, callback) => {
